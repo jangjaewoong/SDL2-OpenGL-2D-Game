@@ -2,6 +2,7 @@
 #include <GL/glew.h>
 #include <SDL2/SDL_opengl.h>
 #include <iostream>
+#include "Shader.h"
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
@@ -52,18 +53,39 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    // OpenGL 정보 출력
-    std::cout << "OpenGL 버전: " << glGetString(GL_VERSION) << std::endl;
-    std::cout << "GLSL 버전: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
-    std::cout << "GPU: " << glGetString(GL_RENDERER) << std::endl;
-
     // VSync 활성화
     SDL_GL_SetSwapInterval(1);
+    // 삼각형 정점 (x, y, z)
+    float vertices[] = {
+        -0.5f, -0.5f, 0.0f,  // 왼쪽 아래
+         0.5f, -0.5f, 0.0f,  // 오른쪽 아래
+         0.0f,  0.5f, 0.0f   // 위쪽
+    };
+    
+    GLuint VBO, VAO;
+    
+    // VAO 생성 & 바인딩
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+    
+    // VBO 생성 & 데이터 업로드
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
+    // 정점 속성 설정
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    
+    // 바인딩 해제
+    glBindVertexArray(0);
 
+    // 셰이더 생성 (파일 읽기 + 컴파일 + 링크)
+    Shader shader("shaders/vertex.glsl", "shaders/fragment.glsl");
     // 게임 루프
     bool isRunning = true;
     SDL_Event event;
-
+    
     while (isRunning) {
         // 이벤트 처리
         while (SDL_PollEvent(&event)) {
@@ -76,15 +98,28 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-
-        // 화면 클리어 (파란색)
-        glClearColor(0.2f, 0.3f, 0.8f, 1.0f);
+        
+        // ===== 렌더링 =====
+        
+        // 1. 화면 클리어
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-
-        // 버퍼 스왑 (더블 버퍼링)
+        
+        // 2. 셰이더 활성화
+        shader.use();
+        
+        // 3. VAO 바인딩
+        glBindVertexArray(VAO);
+        
+        // 4. 그리기!
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        
+        // 5. 버퍼 스왑 (화면 표시)
         SDL_GL_SwapWindow(window);
     }
-
+    // OpenGL 객체 삭제
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
     // 정리
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
